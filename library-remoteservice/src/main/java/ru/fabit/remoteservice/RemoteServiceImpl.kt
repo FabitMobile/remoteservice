@@ -1,4 +1,4 @@
-package ru.parking.remoteservice
+package ru.fabit.remoteservice
 
 import android.os.Looper
 import com.android.volley.*
@@ -13,10 +13,10 @@ import io.reactivex.Observable
 import io.reactivex.ObservableSource
 import org.json.JSONException
 import org.json.JSONObject
-import ru.parking.error.AuthFailureException
-import ru.parking.error.NoNetworkConnectionException
-import ru.parking.error.RemoteServiceError
-import ru.parking.error.RequestTimeoutError
+import ru.fabit.error.AuthFailureException
+import ru.fabit.error.NoNetworkConnectionException
+import ru.fabit.error.RemoteServiceError
+import ru.fabit.error.RequestTimeoutError
 import timber.log.Timber
 import java.io.*
 import java.util.*

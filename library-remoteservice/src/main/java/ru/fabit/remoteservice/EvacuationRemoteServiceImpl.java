@@ -1,4 +1,4 @@
-package ru.parking.remoteservice;
+package ru.fabit.remoteservice;
 
 import android.os.Looper;
 
@@ -27,9 +27,9 @@ import java.util.concurrent.ExecutionException;
 
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
-import ru.parking.error.NoNetworkConnectionException;
-import ru.parking.error.RemoteServiceError;
-import ru.parking.error.RequestTimeoutError;
+import ru.fabit.error.NoNetworkConnectionException;
+import ru.fabit.error.RemoteServiceError;
+import ru.fabit.error.RequestTimeoutError;
 import timber.log.Timber;
 
 public class EvacuationRemoteServiceImpl extends RemoteServiceImpl {

@@ -1,4 +1,4 @@
-package ru.parking.remoteservice
+package ru.fabit.remoteservice
 
 import com.android.volley.Response
 import org.json.JSONObject

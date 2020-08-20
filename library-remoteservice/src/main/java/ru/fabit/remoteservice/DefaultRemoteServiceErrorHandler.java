@@ -1,4 +1,4 @@
-package ru.parking.remoteservice;
+package ru.fabit.remoteservice;
 
 import org.json.JSONException;
 import org.json.JSONObject;
