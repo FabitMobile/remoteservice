@@ -9,11 +9,9 @@ import com.android.volley.toolbox.Volley;
 public class VolleyWrapper {
 
     private final RequestQueue requestQueue;
-    private final JsonMocker jsonMocker;
 
     public VolleyWrapper(Context context, RemoteServiceConfig remoteServiceConfig) {
         requestQueue = Volley.newRequestQueue(context, new OkHttp3Stack(remoteServiceConfig));
-        this.jsonMocker = new JsonMocker(context);
     }
 
     public RequestQueue getRequestQueue() {
@@ -23,9 +21,4 @@ public class VolleyWrapper {
             throw new IllegalStateException("RequestQueue not initialized");
         }
     }
-
-    public JsonMocker jsonMocker() {
-        return jsonMocker;
-    }
-
 }
