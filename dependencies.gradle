@@ -19,7 +19,7 @@ ext {
     prettyLoggerVersion = '2.2.0'
 
     //FABIT
-    libraryExceptionVersion = '1.0.4'
+    libraryExceptionVersion = '1.0.1'
 
     remoteServiceDependencies = [
             kotlinStdlib      : "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version",
