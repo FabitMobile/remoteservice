@@ -1,9 +1,9 @@
-package ru.fabit.remoteservice;
+package ru.fabit.remoteservice.remoteservice;
 
 import org.json.JSONObject;
 
 
-public interface RemoteServiceErrorHandler extends ErrorHandler {
+public interface RemoteServiceErrorHandler {
     String getUserMessage(JSONObject jsonObject);
 
     String getCode(JSONObject jsonObject);

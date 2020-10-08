@@ -1,4 +1,4 @@
-package ru.fabit.remoteservice;
+package ru.fabit.remoteservice.remoteservice;
 
 import java.util.Map;
 
