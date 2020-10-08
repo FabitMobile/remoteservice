@@ -6,11 +6,11 @@ import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
-import ru.fabit.remoteservice.BuildConfig
 
 class ClientFactory constructor(
     private val locale: String,
-    private val authenticator: Authenticator
+    private val authenticator: Authenticator,
+    private val isLogEnabled: Boolean
 ) {
 
     private val CONNECT_TIMEOUT_MILLIS = 120000L
@@ -59,7 +59,7 @@ class ClientFactory constructor(
 
     private fun getLoggingInterceptor(): LoggingInterceptor {
         return LoggingInterceptor.Builder()
-            .loggable(BuildConfig.DEBUG)
+            .loggable(isLogEnabled)
             .setLevel(Level.BASIC)
             .request("Request")
             .response("Response")
