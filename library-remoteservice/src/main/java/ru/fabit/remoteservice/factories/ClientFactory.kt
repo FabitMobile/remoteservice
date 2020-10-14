@@ -3,21 +3,25 @@ package ru.fabit.remoteservice.factories
 import com.ihsanbal.logging.Level
 import com.ihsanbal.logging.LoggingInterceptor
 import okhttp3.*
+import ru.fabit.remoteservice.remoteservice.RemoteServiceConfig
 import java.net.HttpURLConnection
 import java.util.concurrent.TimeUnit
 
 class ClientFactory {
 
-    fun create(clientConfig: ClientConfig): OkHttpClient {
+    fun create(
+        remoteServiceConfig: RemoteServiceConfig,
+        authenticator: Authenticator
+    ): OkHttpClient {
         val builder = getPreconfiguredClientBuilder(
-            clientConfig.connectTimeoutMillis,
-            clientConfig.readTimeoutMillis
+            remoteServiceConfig.connectTimeoutMillis,
+            remoteServiceConfig.readTimeoutMillis
         )
         addInterceptors(
             builder,
-            clientConfig.authenticator,
-            Headers.of(clientConfig.defaultHeaders),
-            clientConfig.isLogEnabled
+            authenticator,
+            Headers.of(remoteServiceConfig.defaultHeaders),
+            remoteServiceConfig.isLogEnabled
         )
         return builder.build()
     }

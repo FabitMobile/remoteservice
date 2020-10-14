@@ -9,9 +9,13 @@ public interface RemoteServiceConfig {
 
     String getUploadServerUrl();
 
-    Map<String, String> getHeaders();
+    Map<String, String> getDefaultHeaders();
 
-    int getTimeout();
+    long getConnectTimeoutMillis();
+
+    long getReadTimeoutMillis();
+
+    boolean isLogEnabled();
 
     int getMaxRetries();
 
