@@ -1,6 +1,9 @@
 package ru.fabit.remoteservice.remoteservice
 
+import android.os.Looper
 import io.reactivex.Observable
+import okhttp3.MediaType
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import org.json.JSONObject
 import retrofit2.Response
@@ -27,35 +30,64 @@ class RemoteServiceImpl(
         headers: MutableMap<String, String>?,
         sender: Any?
     ): Observable<JSONObject> {
-        val retrofit = retrofitBuilder
-            .baseUrl(remoteServiceConfig.baseUrl)
-            .build()
-        val api = retrofit.create(RetrofitApi::class.java)
-        val url = remoteServiceConfig.baseUrl.plus(relativePath)
-        val queries = params ?: hashMapOf()
-        return when (requestMethod) {
-            RequestMethods.GET -> api.getObject(url, queries, headers ?: hashMapOf())
-            RequestMethods.PUT -> api.putObject(url, queries, headers ?: hashMapOf())
-            RequestMethods.POST -> api.postObject(url, queries, headers ?: hashMapOf())
-            RequestMethods.DELETE -> api.deleteObject(url, queries, headers ?: hashMapOf())
-            RequestMethods.PATCH -> api.patchObject(url, queries, headers ?: hashMapOf())
-            else -> Observable.create<Response<ResponseBody>> { it.onComplete() }
-        }
-            .onErrorResumeNext(this::onError)
-            .map { response: Response<ResponseBody>? ->
-                mapResponseToJSONObject(response, relativePath)
+        return Observable.defer {
+            if (Looper.getMainLooper() == Looper.myLooper()) throw IllegalThreadStateException()
+            val retrofit = retrofitBuilder
+                .baseUrl(remoteServiceConfig.baseUrl)
+                .build()
+            val api = retrofit.create(RetrofitApi::class.java)
+            val url = remoteServiceConfig.baseUrl.plus(relativePath)
+            when (requestMethod) {
+                RequestMethods.GET -> api.getObject(url, headers ?: hashMapOf(), params ?: mapOf())
+                RequestMethods.PUT -> api.putObject(
+                    url,
+                    headers ?: hashMapOf(),
+                    getRequestBody(params)
+                )
+                RequestMethods.POST -> api.postObject(
+                    url,
+                    headers ?: hashMapOf(),
+                    getRequestBody(params)
+                )
+                RequestMethods.DELETE -> api.deleteObject(
+                    url,
+                    headers ?: hashMapOf(),
+                    params ?: mapOf()
+                )
+                RequestMethods.PATCH -> api.patchObject(
+                    url,
+                    headers ?: hashMapOf(),
+                    getRequestBody(params)
+                )
+                else -> Observable.create { it.onComplete() }
             }
+                .onErrorResumeNext(this::onError)
+                .map { response: Response<ResponseBody>? ->
+                    mapResponseToJSONObject(response, relativePath)
+                }
+        }
+    }
+
+    private fun getRequestBody(params: HashMap<String, Any>?): RequestBody {
+        val jsonObject = JSONObject(params?.toMap() ?: mapOf<Any, Any>())
+        return RequestBody.create(
+            MediaType.parse("application/json; charset=utf-8"),
+            jsonObject.toString()
+        )
     }
 
     private fun onError(t: Throwable): Observable<Response<ResponseBody>> {
         return when (t) {
-            is SocketTimeoutException -> Observable.error<Response<ResponseBody>>(
+            is SocketTimeoutException -> Observable.error(
                 RequestTimeoutError(t.message)
             )
-            is IOException -> Observable.error<Response<ResponseBody>>(
+            is IllegalThreadStateException -> Observable.error(
+                IllegalThreadStateException(t.message)
+            )
+            is IOException -> Observable.error(
                 NoNetworkConnectionException(t.message)
             )
-            else -> Observable.error<Response<ResponseBody>>(RuntimeException(t.message))
+            else -> Observable.error(RuntimeException(t.message))
         }
     }
 
@@ -67,8 +99,8 @@ class RemoteServiceImpl(
         return response?.code()?.let { code ->
             when (code) {
                 in 200..299 -> {
-                    body?.string()?.let {
-                        JSONObject(it)
+                    body?.string()?.let { json ->
+                        JSONObject(json)
                     } ?: JSONObject()
                 }
                 401 -> {

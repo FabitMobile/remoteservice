@@ -2,68 +2,98 @@ package ru.fabit.remoteservice.factories
 
 import com.ihsanbal.logging.Level
 import com.ihsanbal.logging.LoggingInterceptor
-import okhttp3.Authenticator
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
+import okhttp3.*
+import java.net.HttpURLConnection
 import java.util.concurrent.TimeUnit
 
-class ClientFactory constructor(
-    private val locale: String,
-    private val authenticator: Authenticator,
-    private val isLogEnabled: Boolean
-) {
+class ClientFactory {
 
-    private val CONNECT_TIMEOUT_MILLIS = 120000L
-    private val READ_TIMEOUT_MILLIS = 120000L
-
-    fun create(): OkHttpClient {
-        val builder = getPreconfiguredClientBuilder()
-
-        addInterceptors(builder)
-
+    fun create(clientConfig: ClientConfig): OkHttpClient {
+        val builder = getPreconfiguredClientBuilder(
+            clientConfig.connectTimeoutMillis,
+            clientConfig.readTimeoutMillis
+        )
+        addInterceptors(
+            builder,
+            clientConfig.authenticator,
+            Headers.of(clientConfig.defaultHeaders),
+            clientConfig.isLogEnabled
+        )
         return builder.build()
     }
 
-    private fun getPreconfiguredClientBuilder(): OkHttpClient.Builder {
+    private fun getPreconfiguredClientBuilder(
+        connectTimeoutMillis: Long,
+        readTimeoutMillis: Long
+    ): OkHttpClient.Builder {
         return OkHttpClient.Builder().apply {
-            connectTimeout(CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
-            readTimeout(READ_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            connectTimeout(connectTimeoutMillis, TimeUnit.MILLISECONDS)
+            readTimeout(readTimeoutMillis, TimeUnit.MILLISECONDS)
         }
     }
 
-    private fun addInterceptors(builder: OkHttpClient.Builder) {
+    private fun addInterceptors(
+        builder: OkHttpClient.Builder,
+        authenticator: Authenticator,
+        headers: Headers,
+        isLogEnabled: Boolean
+    ) {
         with(builder) {
             authenticator(authenticator)
-            addInterceptor(getLoggingInterceptor())
-            addInterceptor(getLanguageInterceptor())
-            addInterceptor(getCharsetInterceptor())
+            addInterceptor(getLoggingInterceptor(isLogEnabled))
+            addInterceptor(getInterceptors(headers))
+            addInterceptor(getAuthorizationHeaderInterceptor(authenticator))
         }
     }
 
-    private fun getLanguageInterceptor() = Interceptor { chain ->
+    private fun getInterceptors(headers: Headers) = Interceptor { chain ->
         var request = chain.request()
-        request = request.newBuilder()
-            .header("Content-Language", locale)
+        val requestBuilder = request.newBuilder()
+        val includedHeaders = request.headers()
+        val newHeaders = includedHeaders.newBuilder()
+        for (key in headers.names()) {
+            if (includedHeaders.get(key) == null) {
+                newHeaders.add(key, headers.get(key) ?: "")
+            }
+        }
+        request = requestBuilder
+            .headers(newHeaders.build())
             .build()
         chain.proceed(request)
     }
 
-    private fun getCharsetInterceptor() = Interceptor { chain ->
-        var request = chain.request()
-        request = request.newBuilder()
-            .header("content-type", "application/json; charset=utf-8")
-            .build()
-        chain.proceed(request)
-    }
 
-
-    private fun getLoggingInterceptor(): LoggingInterceptor {
+    private fun getLoggingInterceptor(isLogEnabled: Boolean): LoggingInterceptor {
         return LoggingInterceptor.Builder()
             .loggable(isLogEnabled)
             .setLevel(Level.BASIC)
             .request("Request")
             .response("Response")
             .build()
+    }
+
+    private fun getAuthorizationHeaderInterceptor(authenticator: Authenticator) =
+        Interceptor { chain ->
+            if (isRequestWithAccessToken(chain.request())) {
+                chain.proceed(
+                    authenticator.authenticate(
+                        null,
+                        Response.Builder()
+                            .request(chain.request().newBuilder().build())
+                            .protocol(Protocol.HTTP_2)
+                            .code(HttpURLConnection.HTTP_PROXY_AUTH)
+                            .message("")
+                            .build()
+                    )
+                )
+            } else {
+                chain.proceed(chain.request().newBuilder().build())
+            }
+        }
+
+    private fun isRequestWithAccessToken(request: Request): Boolean {
+        val header = request.header("Authorization")
+        return header != null && header.startsWith("Bearer")
     }
 
 }
