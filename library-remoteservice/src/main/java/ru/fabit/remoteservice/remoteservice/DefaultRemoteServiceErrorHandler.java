@@ -1,8 +1,7 @@
-package ru.fabit.remoteservice;
+package ru.fabit.remoteservice.remoteservice;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-
 
 public class DefaultRemoteServiceErrorHandler implements RemoteServiceErrorHandler {
 
@@ -35,5 +34,6 @@ public class DefaultRemoteServiceErrorHandler implements RemoteServiceErrorHandl
 
     @Override
     public void handleError(Throwable throwable, String requestPath) {
+        //do nothing
     }
 }

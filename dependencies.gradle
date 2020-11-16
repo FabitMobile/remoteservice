@@ -11,12 +11,10 @@ ext {
     //Deps
     timberVersion = '4.7.0'
     rxJavaVersion = '2.1.10'
-    volleyVersion = '1.0.19'
-    jacksonVersion = '2.4.2'
-    httpmimeVersion = '4.2.3'
-    okhttpVersion = '3.12.0'
     okioVersion = '2.1.0'
-    prettyLoggerVersion = '2.2.0'
+    retrofitVersion = '2.9.0'
+    retrofitRxAdapterVersion = '2.9.0'
+    loggingInterceptorVersion = '3.0.0'
 
     //FABIT
     libraryExceptionVersion = '1.0.1'
@@ -25,14 +23,10 @@ ext {
             kotlinStdlib      : "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version",
             timber            : "com.jakewharton.timber:timber:$timberVersion",
             rxJava            : "io.reactivex.rxjava2:rxjava:$rxJavaVersion",
-            volley            : "com.mcxiaoke.volley:library:$volleyVersion",
-            jacksonCore       : "com.fasterxml.jackson.core:jackson-core:$jacksonVersion",
-            jacksonAnnotations: "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion",
-            jacksonDatabind   : "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion",
-            httpmime          : "org.apache.httpcomponents:httpmime:$httpmimeVersion",
-            okhttp            : "com.squareup.okhttp3:okhttp:$okhttpVersion",
             okio              : "com.squareup.okio:okio:$okioVersion",
-            logger            : "com.orhanobut:logger:$prettyLoggerVersion"
+            retrofit             : "com.squareup.retrofit2:retrofit:$retrofitVersion",
+            retrofitRxAdapter    : "com.squareup.retrofit2:adapter-rxjava2:$retrofitRxAdapterVersion",
+            loggingInterceptor   : "com.github.ihsanbal:LoggingInterceptor:$loggingInterceptorVersion"
     ]
 
     libs = [

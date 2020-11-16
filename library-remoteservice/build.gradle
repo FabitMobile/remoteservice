@@ -40,14 +40,13 @@ dependencies {
 
     implementation deps.timber
     implementation deps.rxJava
-    implementation deps.volley
-    implementation deps.jacksonCore
-    implementation deps.jacksonAnnotations
-    implementation deps.jacksonDatabind
-    implementation deps.httpmime
-    implementation deps.okhttp
-    implementation deps.logger
     implementation deps.kotlinStdlib
+
+    implementation deps.retrofit
+    implementation deps.retrofitRxAdapter
+    implementation(deps.loggingInterceptor) {
+        exclude group: 'org.json', module: 'json'
+    }
 
     //FABIT
     implementation libs.exception
