@@ -15,8 +15,18 @@ import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicStatusLine;
 
 import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import okhttp3.Call;
 import okhttp3.Headers;
@@ -31,10 +41,50 @@ public class OkHttp3Stack implements HttpStack {
 
     private final OkHttpClient client;
 
+    final TrustManager[] trustAllCertsManager = new TrustManager[]{
+            new X509TrustManager() {
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                }
 
-    public OkHttp3Stack(RemoteServiceConfig remoteServiceConfig) {
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                }
 
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[]{};
+                }
+            }
+    };
+
+
+    public OkHttp3Stack(RemoteServiceConfig remoteServiceConfig, Boolean isTrustAllCerts) {
         OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
+
+        if (isTrustAllCerts) {
+            SSLSocketFactory sslSocketFactory = null;
+            try {
+                SSLContext sslContext = SSLContext.getInstance("SSL");
+                sslContext.init(null, trustAllCertsManager, new java.security.SecureRandom());
+                sslSocketFactory = sslContext.getSocketFactory();
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            } catch (KeyManagementException e) {
+                e.printStackTrace();
+            }
+
+            if (sslSocketFactory != null) {
+                clientBuilder.sslSocketFactory(sslSocketFactory, (X509TrustManager) trustAllCertsManager[0]);
+            }
+            clientBuilder.hostnameVerifier(new HostnameVerifier() {
+                @Override
+                public boolean verify(String hostname, SSLSession session) {
+                    return true;
+                }
+            });
+        }
+
         clientBuilder.connectTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
         clientBuilder.readTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
         clientBuilder.writeTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
