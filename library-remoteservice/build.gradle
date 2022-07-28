@@ -36,8 +36,6 @@ dependencies {
     def deps = rootProject.ext.remoteServiceDependencies
     def libs = rootProject.ext.libs
 
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-
     implementation deps.timber
     implementation deps.rxJava
     implementation deps.volley
