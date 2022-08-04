@@ -1,12 +1,12 @@
 ext {
     //Config
-    androidCompileSdkVersion = 28
+    androidCompileSdkVersion = 31
     androidBuildToolsVersion = "28.0.3"
     androidMinSdkVersion = 19
-    androidTargetSdkVersion = 28
+    androidTargetSdkVersion = 31
 
-    appVersionCode = 5
-    appVersionName = "1.0.3"
+    appVersionCode = 6
+    appVersionName = "1.0.5-beta.1"
 
     //Deps
     timberVersion = '4.7.0'
@@ -14,8 +14,7 @@ ext {
     volleyVersion = '1.0.19'
     jacksonVersion = '2.4.2'
     httpmimeVersion = '4.2.3'
-    okhttpVersion = '3.12.0'
-    okioVersion = '2.1.0'
+    okhttpVersion = '4.10.0'
     prettyLoggerVersion = '2.2.0'
 
     //FABIT
@@ -31,7 +30,6 @@ ext {
             jacksonDatabind   : "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion",
             httpmime          : "org.apache.httpcomponents:httpmime:$httpmimeVersion",
             okhttp            : "com.squareup.okhttp3:okhttp:$okhttpVersion",
-            okio              : "com.squareup.okio:okio:$okioVersion",
             logger            : "com.orhanobut:logger:$prettyLoggerVersion"
     ]
 

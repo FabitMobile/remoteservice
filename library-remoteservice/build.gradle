@@ -1,6 +1,5 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'com.github.dcendents.android-maven'
 
 group = 'com.github.FabitMobile'
 
@@ -35,8 +34,6 @@ android {
 dependencies {
     def deps = rootProject.ext.remoteServiceDependencies
     def libs = rootProject.ext.libs
-
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
 
     implementation deps.timber
     implementation deps.rxJava
