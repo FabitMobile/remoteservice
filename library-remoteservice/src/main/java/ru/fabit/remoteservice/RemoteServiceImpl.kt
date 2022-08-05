@@ -1,16 +1,14 @@
 package ru.fabit.remoteservice
 
-import android.os.Looper
+import  android.os.Looper
 import com.android.volley.*
-import com.android.volley.toolbox.HttpHeaderParser
-import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.RequestFuture
+import com.android.volley.toolbox.*
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import com.orhanobut.logger.Logger
 import io.reactivex.Observable
 import io.reactivex.ObservableSource
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import ru.fabit.error.AuthFailureException
@@ -66,6 +64,98 @@ open class RemoteServiceImpl(
         })
     }
 
+    override fun getRemoteJsonArray(
+        requestMethod: Int,
+        relativePath: String,
+        params: HashMap<String, Any>,
+        headers: MutableMap<String, String>,
+        sender: Any
+    ): Observable<JSONArray> {
+        return Observable.defer(Callable<ObservableSource<JSONArray>> {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                throw WrongThreadException("RemoteService must not be called from the Main thread")
+            }
+            try {
+                return@Callable Observable.just(
+                    getRemoteJsonArrayInner(
+                        requestMethod,
+                        relativePath,
+                        params,
+                        headers,
+                        sender
+                    )
+                )
+            } catch (error: Exception) {
+                val serviceError = errorHandling(error, relativePath)
+                return@Callable Observable.error(serviceError)
+            } finally {
+                volleyWrapper.requestQueue.cache.clear()
+            }
+        })
+    }
+
+    @Throws(ExecutionException::class, InterruptedException::class)
+    private fun getRemoteJsonArrayInner(
+        requestMethod: Int,
+        relativePath: String,
+        params: HashMap<String, Any>?,
+        headers: Map<String, String>?,
+        sender: Any
+    ): JSONArray {
+
+        val queue = volleyWrapper.requestQueue
+        val url = remoteServiceConfig.baseUrl
+
+        val stringBody = getStringBody(params)
+        val jsonBody = getJsonBody(stringBody)
+
+        val fullPath = getFullPath(relativePath, url)
+
+        var urlParams = ""
+        if (params != null) {
+            urlParams = params.toString()
+        }
+        Timber.tag("RemoteLog").d("Request: $fullPath\n$urlParams")
+
+        val future = RequestFuture.newFuture<JSONArray>()
+
+        val jsonArrayRequest = object : JsonArrayRequest(
+            requestMethod,
+            fullPath,
+            jsonBody,
+            future,
+            future
+        ) {
+            override fun parseNetworkResponse(response: NetworkResponse): Response<JSONArray> {
+                try {
+                    val output = when (isContainsEncodingContent(response.headers)) {
+                        true -> parseGzip(response.data)
+                        false -> parse(response.data, response.headers)
+                    }
+                    val jsonArray = when (output.isNotEmpty()) {
+                        true -> JSONArray(output)
+                        false -> JSONArray()
+                    }
+                    return ResponseWithoutCacheFactory.get(jsonArray)
+                } catch (e: UnsupportedEncodingException) {
+                    e.printStackTrace()
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                } catch (e: JSONException) {
+                    e.printStackTrace()
+                }
+                return super.parseNetworkResponse(response)
+            }
+
+            @Throws(AuthFailureError::class)
+            override fun getHeaders() = getHeaders(remoteServiceConfig, headers)
+        }.apply {
+            addRetryPolicy(this, sender)
+        }
+        queue.add(jsonArrayRequest)
+        return future.get()
+    }
+
     @Throws(ExecutionException::class, InterruptedException::class)
     private fun getRemoteJsonInner(
         requestMethod: Int,
@@ -100,41 +190,15 @@ open class RemoteServiceImpl(
         ) {
             override fun parseNetworkResponse(response: NetworkResponse): Response<JSONObject> {
                 try {
-                    if (response.headers.containsKey("Content-Encoding")) {
-                        val gzipStream = GZIPInputStream(ByteArrayInputStream(response.data))
-                        val reader = InputStreamReader(gzipStream)
-                        val br = BufferedReader(reader, response.data.size)
-
-                        val output = br.use(BufferedReader::readText)
-
-                        reader.close()
-                        br.close()
-                        gzipStream.close()
-
-                        Logger.t("Response")
-                        Logger.t("Response").json(output.toString())
-
-                        if (output.isNotEmpty()) {
-                            val jsonObject = JSONObject(output)
-                            return ResponseWithoutCacheFactory.get(
-                                jsonObject
-                            )
-                        }
+                    val output = when (isContainsEncodingContent(response.headers)) {
+                        true -> parseGzip(response.data)
+                        false -> parse(response.data, response.headers)
                     }
-
-                    val json = java.lang.String(
-                        response.data,
-                        HttpHeaderParser.parseCharset(response.headers)
-                    ).toString()
-                    Logger.t("Response")
-                    Logger.t("Response").json(json)
-
-
-                    if (json.isEmpty()) {
-                        return ResponseWithoutCacheFactory.get(
-                            JSONObject()
-                        )
+                    val jsonObject = when (output.isNotEmpty()) {
+                        true -> JSONObject(output)
+                        false -> JSONObject()
                     }
+                    return ResponseWithoutCacheFactory.get(jsonObject)
                 } catch (e: UnsupportedEncodingException) {
                     e.printStackTrace()
                 } catch (e: IOException) {
@@ -142,33 +206,15 @@ open class RemoteServiceImpl(
                 } catch (e: JSONException) {
                     e.printStackTrace()
                 }
-
                 return super.parseNetworkResponse(response)
             }
 
             @Throws(AuthFailureError::class)
-            override fun getHeaders(): Map<String, String> {
-                var baseHeaders: MutableMap<String, String>? = remoteServiceConfig.headers
-                if (headers != null) {
-                    for ((key, value) in headers) {
-                        baseHeaders!![key] = value
-                    }
-                }
-                if (baseHeaders == null) {
-                    baseHeaders = HashMap()
-                }
-                return baseHeaders
-            }
+            override fun getHeaders() = getHeaders(remoteServiceConfig, headers)
 
+        }.apply {
+            addRetryPolicy(this, sender)
         }
-
-        jsonObjectRequest.retryPolicy = DefaultRetryPolicy(
-            remoteServiceConfig.timeout,
-            remoteServiceConfig.maxRetries,
-            DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-        )
-
-        jsonObjectRequest.tag = sender
         queue.add(jsonObjectRequest)
         return future.get()
     }
@@ -295,6 +341,19 @@ open class RemoteServiceImpl(
         return errorInfo
     }
 
+    private fun getHeaders(
+        remoteServiceConfig: RemoteServiceConfig,
+        headers: Map<String, String>?
+    ): Map<String, String> {
+        val baseHeaders = remoteServiceConfig.headers
+        if (headers != null) {
+            for ((key, value) in headers) {
+                baseHeaders[key] = value
+            }
+        }
+        return baseHeaders
+    }
+
     private fun parseErrorMessage(jsonObject: JSONObject) =
         RemoteError(
             userMessage = remoteServiceErrorHandler.getUserMessage(jsonObject),
@@ -302,10 +361,41 @@ open class RemoteServiceImpl(
             name = remoteServiceErrorHandler.getErrorName(jsonObject)
         )
 
+    private fun isContainsEncodingContent(responseHeaders: Map<String, String>): Boolean =
+        responseHeaders.containsKey("Content-Encoding")
+
+    private fun parseGzip(responseData: ByteArray): String {
+        val gzipStream = GZIPInputStream(ByteArrayInputStream(responseData))
+        val reader = InputStreamReader(gzipStream)
+        val br = BufferedReader(reader, responseData.size)
+        val output = br.use(BufferedReader::readText)
+        reader.close()
+        br.close()
+        gzipStream.close()
+        return output
+    }
+
+    private fun parse(responseData: ByteArray, responseHeaders: Map<String, String>): String {
+        return java.lang.String(
+            responseData,
+            HttpHeaderParser.parseCharset(responseHeaders)
+        ).toString()
+    }
+
     data class RemoteError(
         val userMessage: String? = null,
         val code: String? = null,
         val name: String? = null
     )
 
+    private fun <T> addRetryPolicy(jsonRequest: JsonRequest<T>, sender: Any) {
+        with(jsonRequest) {
+            retryPolicy = DefaultRetryPolicy(
+                remoteServiceConfig.timeout,
+                remoteServiceConfig.maxRetries,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+            )
+            tag = sender
+        }
+    }
 }
