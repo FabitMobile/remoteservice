@@ -213,12 +213,17 @@ public class OkHttp3Stack implements HttpStack {
         } catch (NumberFormatException nfe) {
             nfe.printStackTrace();
         }
-        okhttp3.Request cachedRequest = request.newBuilder()
-                .cacheControl(new CacheControl.Builder()
-                        .maxStale(time, TimeUnit.SECONDS)
-                        .build())
+        CacheControl cacheControl = new CacheControl.Builder()
+                .maxStale(time, TimeUnit.SECONDS)
                 .build();
 
-        return chain.proceed(cachedRequest);
+        okhttp3.Request cachedRequest = request.newBuilder()
+                .cacheControl(cacheControl)
+                .build();
+
+        return chain.proceed(cachedRequest).newBuilder()
+                .header("Cache-Control", cacheControl.toString())
+                .removeHeader("Pragma")
+                .build();
     };
 }
