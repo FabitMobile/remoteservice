@@ -1,6 +1,8 @@
 package ru.fabit.remoteservice;
 
 
+import android.content.Context;
+
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.HttpStack;
@@ -14,6 +16,7 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicStatusLine;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -28,8 +31,11 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import okhttp3.Cache;
+import okhttp3.CacheControl;
 import okhttp3.Call;
 import okhttp3.Headers;
+import okhttp3.Interceptor;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
@@ -40,6 +46,7 @@ import okhttp3.ResponseBody;
 public class OkHttp3Stack implements HttpStack {
 
     private final OkHttpClient client;
+    private final static int DEFAULT_CACHE_STORAGE_TIME_SECONDS = 60;
 
     final TrustManager[] trustAllCertsManager = new TrustManager[]{
             new X509TrustManager() {
@@ -59,7 +66,7 @@ public class OkHttp3Stack implements HttpStack {
     };
 
 
-    public OkHttp3Stack(RemoteServiceConfig remoteServiceConfig, Boolean isTrustAllCerts) {
+    public OkHttp3Stack(Context context, RemoteServiceConfig remoteServiceConfig, Boolean isTrustAllCerts) {
         OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
 
         if (isTrustAllCerts) {
@@ -88,6 +95,8 @@ public class OkHttp3Stack implements HttpStack {
         clientBuilder.connectTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
         clientBuilder.readTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
         clientBuilder.writeTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
+        clientBuilder.cache(new Cache(new File(context.getCacheDir(), "http-cache"), 10L * 1024L * 1024L));
+        clientBuilder.addInterceptor(REWRITE_CACHE_CONTROL_INTERCEPTOR);
         this.client = clientBuilder.build();
     }
 
@@ -191,6 +200,25 @@ public class OkHttp3Stack implements HttpStack {
         if (body == null) {
             return null;
         }
-        return RequestBody.create(MediaType.parse(r.getBodyContentType()), body);
+        return RequestBody.create(body, MediaType.parse(r.getBodyContentType()));
     }
+
+    private static final Interceptor REWRITE_CACHE_CONTROL_INTERCEPTOR = chain -> {
+        okhttp3.Request request = chain.request();
+        if (chain.request().header(HeaderName.CACHE_CONTROL_SECONDS) == null) return chain.proceed(request);
+
+        int time = DEFAULT_CACHE_STORAGE_TIME_SECONDS;
+        try {
+            time = Integer.parseInt(chain.request().header(HeaderName.CACHE_CONTROL_SECONDS));
+        } catch (NumberFormatException nfe) {
+            nfe.printStackTrace();
+        }
+        okhttp3.Request cachedRequest = request.newBuilder()
+                .cacheControl(new CacheControl.Builder()
+                        .maxStale(time, TimeUnit.SECONDS)
+                        .build())
+                .build();
+
+        return chain.proceed(cachedRequest);
+    };
 }
