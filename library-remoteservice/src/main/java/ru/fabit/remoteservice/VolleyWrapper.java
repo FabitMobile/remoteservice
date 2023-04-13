@@ -13,7 +13,7 @@ public class VolleyWrapper {
     public VolleyWrapper(Context context,
                          RemoteServiceConfig remoteServiceConfig,
                          Boolean isTrustAllCerts) {
-        requestQueue = Volley.newRequestQueue(context, new OkHttp3Stack(remoteServiceConfig, isTrustAllCerts));
+        requestQueue = Volley.newRequestQueue(context, new OkHttp3Stack(context, remoteServiceConfig, isTrustAllCerts));
     }
 
     public RequestQueue getRequestQueue() {
