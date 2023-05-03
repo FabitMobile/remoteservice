@@ -6,7 +6,7 @@ ext {
     androidTargetSdkVersion = 31
 
     appVersionCode = 6
-    appVersionName = "1.0.7"
+    appVersionName = "1.0.9"
 
     //Deps
     timberVersion = '4.7.0'

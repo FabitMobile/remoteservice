@@ -205,25 +205,30 @@ public class OkHttp3Stack implements HttpStack {
 
     private static final Interceptor REWRITE_CACHE_CONTROL_INTERCEPTOR = chain -> {
         okhttp3.Request request = chain.request();
-        if (chain.request().header(HeaderName.CACHE_CONTROL_SECONDS) == null) return chain.proceed(request);
-
-        int time = DEFAULT_CACHE_STORAGE_TIME_SECONDS;
-        try {
-            time = Integer.parseInt(chain.request().header(HeaderName.CACHE_CONTROL_SECONDS));
-        } catch (NumberFormatException nfe) {
-            nfe.printStackTrace();
+        CacheControl.Builder cacheControlBuilder = new CacheControl.Builder();
+        CacheControl cacheControl;
+        if (chain.request().header(HeaderName.CACHE_CONTROL_SECONDS) == null) {
+            cacheControlBuilder.noCache();
+        } else {
+            int time = DEFAULT_CACHE_STORAGE_TIME_SECONDS;
+            try {
+                time = Integer.parseInt(chain.request().header(HeaderName.CACHE_CONTROL_SECONDS));
+            } catch (NumberFormatException nfe) {
+                nfe.printStackTrace();
+            }
+            cacheControlBuilder.maxStale(time, TimeUnit.SECONDS);
         }
-        CacheControl cacheControl = new CacheControl.Builder()
-                .maxStale(time, TimeUnit.SECONDS)
-                .build();
-
+        cacheControl = cacheControlBuilder.build();
         okhttp3.Request cachedRequest = request.newBuilder()
                 .cacheControl(cacheControl)
                 .build();
-
-        return chain.proceed(cachedRequest).newBuilder()
-                .header("Cache-Control", cacheControl.toString())
-                .removeHeader("Pragma")
-                .build();
+        if (chain.request().header(HeaderName.CACHE_CONTROL_SECONDS) == null) {
+            return chain.proceed(cachedRequest);
+        } else {
+            return chain.proceed(cachedRequest).newBuilder()
+                    .header("Cache-Control", cacheControl.toString())
+                    .removeHeader("Pragma")
+                    .build();
+        }
     };
 }
