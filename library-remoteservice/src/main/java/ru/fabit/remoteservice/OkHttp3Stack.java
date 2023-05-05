@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -66,7 +67,7 @@ public class OkHttp3Stack implements HttpStack {
     };
 
 
-    public OkHttp3Stack(Context context, RemoteServiceConfig remoteServiceConfig, Boolean isTrustAllCerts) {
+    public OkHttp3Stack(Context context, RemoteServiceConfig remoteServiceConfig, Boolean isTrustAllCerts, List<Interceptor> interceptorList) {
         OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
 
         if (isTrustAllCerts) {
@@ -97,6 +98,9 @@ public class OkHttp3Stack implements HttpStack {
         clientBuilder.writeTimeout(remoteServiceConfig.getTimeout(), TimeUnit.MILLISECONDS);
         clientBuilder.cache(new Cache(new File(context.getCacheDir(), "http-cache"), 10L * 1024L * 1024L));
         clientBuilder.addInterceptor(REWRITE_CACHE_CONTROL_INTERCEPTOR);
+        for (Interceptor interceptor : interceptorList) {
+            clientBuilder.addInterceptor(interceptor);
+        }
         this.client = clientBuilder.build();
     }
 
